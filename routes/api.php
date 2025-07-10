@@ -20,3 +20,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 Route::apiResource('users', UserController::class);
+
+Route::get('/logs', function () {
+    return response()->file(storage_path('logs/laravel.log'));
+});

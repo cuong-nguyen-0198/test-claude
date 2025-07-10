@@ -32,6 +32,7 @@ class UserRepository
 
     public function create(array $data): User
     {
+
         return $this->model->create($data);
     }
 

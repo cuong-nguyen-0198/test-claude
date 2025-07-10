@@ -2,19 +2,26 @@
 
 namespace App\Services;
 
+use App\Jobs\UserSendMailJob;
 use App\Models\User;
 use App\Repositories\UserRepository;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class UserService
 {
-    protected $userRepository;
+    protected UserRepository $userRepository;
+    protected SlackService $slackService;
 
-    public function __construct(UserRepository $userRepository)
+    public function __construct(
+        UserRepository $userRepository,
+        SlackService $slackService
+    )
     {
         $this->userRepository = $userRepository;
+        $this->slackService = $slackService;
     }
 
     public function getAllUsers(): Collection
@@ -34,8 +41,14 @@ class UserService
 
     public function createUser(array $data): User
     {
-        $data['password'] = Hash::make($data['password']);
-        return $this->userRepository->create($data);
+        return DB::transaction(function () use ($data) {
+            $dataForm = $data;
+            $data['password'] = Hash::make($data['password']);
+            $userCreated = $this->userRepository->create($data);
+
+            UserSendMailJob::dispatch($userCreated, $dataForm);
+            return $userCreated;
+        });
     }
 
     public function updateUser(int $id, array $data): bool

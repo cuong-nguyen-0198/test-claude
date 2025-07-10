@@ -58,13 +58,13 @@ ecr_login() {
 build_and_push() {
     local image_tag=${1:-$(git rev-parse --short HEAD)}
     local ecr_uri="$ECR_REPOSITORY:$image_tag"
-    
+
     log "Building Docker image with tag: $image_tag"
     docker build -f Dockerfile.prod -t $ecr_uri .
-    
+
     log "Pushing image to ECR..."
     docker push $ecr_uri
-    
+
     log "Image pushed successfully: $ecr_uri"
     echo $ecr_uri
 }
@@ -73,17 +73,17 @@ build_and_push() {
 update_task_definition() {
     local image_uri=$1
     local temp_file=$(mktemp)
-    
+
     log "Updating task definition with new image..."
-    
+
     # Replace image URI in task definition
     sed "s|YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/laravel-app:latest|$image_uri|g" $TASK_DEFINITION_FILE > $temp_file
-    
+
     # Register new task definition
     aws ecs register-task-definition \
         --cli-input-json file://$temp_file \
         --region $AWS_REGION
-    
+
     rm $temp_file
     log "Task definition updated successfully"
 }
@@ -91,33 +91,33 @@ update_task_definition() {
 # Deploy to ECS
 deploy_to_ecs() {
     log "Deploying to ECS service..."
-    
+
     # Update service with new task definition
     aws ecs update-service \
         --cluster $ECS_CLUSTER \
         --service $ECS_SERVICE \
         --force-new-deployment \
         --region $AWS_REGION
-    
+
     log "Deployment initiated"
 }
 
 # Wait for deployment to complete
 wait_for_deployment() {
     log "Waiting for deployment to complete..."
-    
+
     aws ecs wait services-stable \
         --cluster $ECS_CLUSTER \
         --services $ECS_SERVICE \
         --region $AWS_REGION
-    
+
     log "Deployment completed successfully"
 }
 
 # Run database migrations
 run_migrations() {
     log "Running database migrations..."
-    
+
     # Get task definition ARN
     local task_def_arn=$(aws ecs describe-services \
         --cluster $ECS_CLUSTER \
@@ -125,7 +125,7 @@ run_migrations() {
         --query 'services[0].taskDefinition' \
         --output text \
         --region $AWS_REGION)
-    
+
     # Run migration task
     aws ecs run-task \
         --cluster $ECS_CLUSTER \
@@ -137,14 +137,14 @@ run_migrations() {
             }]
         }' \
         --region $AWS_REGION
-    
+
     log "Database migrations completed"
 }
 
 # Clear application cache
 clear_cache() {
     log "Clearing application cache..."
-    
+
     # Get task definition ARN
     local task_def_arn=$(aws ecs describe-services \
         --cluster $ECS_CLUSTER \
@@ -152,7 +152,7 @@ clear_cache() {
         --query 'services[0].taskDefinition' \
         --output text \
         --region $AWS_REGION)
-    
+
     # Clear cache
     aws ecs run-task \
         --cluster $ECS_CLUSTER \
@@ -164,31 +164,31 @@ clear_cache() {
             }]
         }' \
         --region $AWS_REGION
-    
+
     log "Application cache cleared"
 }
 
 # Main deployment function
 main() {
     log "Starting deployment process..."
-    
+
     check_aws_cli
     check_environment
     ecr_login
-    
+
     local image_uri=$(build_and_push)
     update_task_definition $image_uri
     deploy_to_ecs
     wait_for_deployment
-    
+
     if [[ "$1" == "--migrate" ]]; then
         run_migrations
     fi
-    
+
     if [[ "$1" == "--clear-cache" ]]; then
         clear_cache
     fi
-    
+
     log "Deployment completed successfully!"
 }
 
@@ -205,9 +205,10 @@ OPTIONS:
     --help         Show this help message
 
 ENVIRONMENT VARIABLES:
-    AWS_ACCESS_KEY_ID      AWS access key ID
-    AWS_SECRET_ACCESS_KEY  AWS secret access key
-    AWS_DEFAULT_REGION     AWS region (default: us-east-1)
+    AWS_ACCESS_KEY_ID       AWS access key ID
+    AWS_SECRET_ACCESS_KEY   AWS secret access key
+    AWS_DEFAULT_REGION      AWS region (default: us-east-1)
+    LOG_SLACK_WEBHOOK_URL   SLACK webhook url
 
 EXAMPLES:
     $0                     # Deploy without migrations

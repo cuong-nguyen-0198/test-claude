@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\SlackService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
@@ -45,6 +46,10 @@ class UserApiTest extends TestCase
 
     public function test_can_create_user(): void
     {
+        $this->mock(SlackService::class, function ($mock) {
+            $mock->shouldReceive('send')->once()->andReturnTrue();
+        });
+
         $userData = [
             'name' => $this->faker->name,
             'email' => $this->faker->unique()->safeEmail,
@@ -145,7 +150,7 @@ class UserApiTest extends TestCase
     public function test_create_user_with_existing_email_fails(): void
     {
         $existingUser = User::factory()->create();
-        
+
         $userData = [
             'name' => $this->faker->name,
             'email' => $existingUser->email,

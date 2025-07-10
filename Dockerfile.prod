@@ -57,6 +57,11 @@ RUN mkdir -p /var/log/nginx /var/log/supervisor
 COPY .docker/scripts/health-check.sh /usr/local/bin/health-check.sh
 RUN chmod +x /usr/local/bin/health-check.sh
 
+# Entrypoint
+ADD ./.docker/scripts/startup.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT /entrypoint.sh
+
 # Expose port
 EXPOSE 80
 
